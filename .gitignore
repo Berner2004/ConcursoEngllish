@@ -1,0 +1,28 @@
+# --- SEGURIDAD CRÍTICA ---
+# Bloquea cualquier variante de archivos de entorno
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# --- FRONTEND (React / Vite) ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vscode/
+
+# --- BACKEND (Python / FastAPI) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.installed.cfg
+
+# --- OTROS ---
+.DS_Store
+thumbs.db
