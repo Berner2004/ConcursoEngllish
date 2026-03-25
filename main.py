@@ -15,12 +15,12 @@ app = FastAPI(title="AEA Contest API - Production")
 # 1. CONFIGURACIÓN DE CORS (EL PUENTE)
 # ==========================================
 # IMPORTANTE: Reemplaza la URL de Netlify con tu URL REAL una vez que la tengas
+# En tu main.py de Render
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",            # Para pruebas locales
-        "http://127.0.0.1:5173",
-        "preeminent-beijinho-fd3e37.netlify.app",  # <-- PEGA AQUÍ TU URL DE NETLIFY
+        "http://localhost:5173",
+        "https://preeminent-beijinho-fd3e37.netlify.app" # <--- ESTA ES TU URL REAL
     ],
     allow_credentials=True,
     allow_methods=["*"],
