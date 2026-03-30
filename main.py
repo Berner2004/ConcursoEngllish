@@ -21,7 +21,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://preeminent-beijinho-fd3e37.netlify.app" # <--- ESTA ES TU URL REAL
+        "https://english-contest-lkcj2468a-maciasberner-1059s-projects.vercel.app" # <--- AGREGA TU URL DE VERCEL AQUÍ
     ],
     allow_credentials=True,
     allow_methods=["*"],
