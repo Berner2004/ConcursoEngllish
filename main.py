@@ -17,11 +17,14 @@ app = FastAPI(title="AEA Contest API - Production")
 # ==========================================
 # IMPORTANTE: Reemplaza la URL de Netlify con tu URL REAL una vez que la tengas
 # En tu main.py de Render
+# En tu main.py de Render
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://english-contest-lkcj2468a-maciasberner-1059s-projects.vercel.app" # <--- AGREGA TU URL DE VERCEL AQUÍ
+        "https://preeminent-beijinho-fd3e37.netlify.app",
+        "https://english-contest-vlyas7muk-maciasberner-1059s-projects.vercel.app", # La de la imagen
+        "https://english-contest-gamma.vercel.app" # O tu dominio principal si lo tienes
     ],
     allow_credentials=True,
     allow_methods=["*"],
