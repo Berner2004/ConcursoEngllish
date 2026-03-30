@@ -4,6 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 import os
 import uvicorn
+import socketio  # <--- NUEVO IMPORT PARA WEBSOCKETS
 from dotenv import load_dotenv
 
 # Cargar variables desde .env (solo para desarrollo local)
@@ -26,6 +27,30 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==========================================
+# 1.5 CONFIGURACIÓN DE SOCKET.IO (EL ESPEJO)
+# ==========================================
+# Creamos el servidor asíncrono de Socket.io
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+
+@sio.on('connect')
+async def connect(sid, environ):
+    print(f"🔌 Dispositivo conectado a Socket.io: {sid}")
+
+@sio.on('sync_state')
+async def sync_state(sid, data):
+    # Rebota la señal a todos los demás dispositivos (la pantalla pública)
+    await sio.emit('sync_state', data, skip_sid=sid)
+
+@sio.on('clear_state')
+async def clear_state(sid):
+    await sio.emit('clear_state', skip_sid=sid)
+
+@sio.on('disconnect')
+def disconnect(sid):
+    print(f"❌ Dispositivo desconectado de Socket.io: {sid}")
+
 
 # ==========================================
 # 2. CONEXIÓN A MONGODB ATLAS
@@ -90,8 +115,11 @@ async def get_db_categories():
     return categories
 
 # ==========================================
-# 5. ARRANQUE DEL SERVIDOR (PUERTO DINÁMICO)
+# 5. INTEGRACIÓN FINAL Y ARRANQUE
 # ==========================================
+# Envolvemos la app de FastAPI con Socket.io para que usen el mismo puerto
+app = socketio.ASGIApp(sio, other_asgi_app=app)
+
 if __name__ == "__main__":
     # Render y Railway asignan el puerto automáticamente mediante la variable PORT
     port = int(os.environ.get("PORT", 8000))
