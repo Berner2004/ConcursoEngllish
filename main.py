@@ -139,6 +139,50 @@ async def update_score(participant_id: str, data: ScoreUpdateRequest):
             return {"message": "Score updated or participant not found"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # ==========================================
+# 4.5 ENDPOINTS DE PUNTUACIONES (COLECCIÓN 'scores')
+# ==========================================
+class ScoreUpdateRequest(BaseModel):
+    participant_name: str
+    category: str
+    round_number: str
+    criteria_key: str
+    score: int
+
+@app.put("/api/scores/{participant_id}")
+async def update_score(participant_id: str, data: ScoreUpdateRequest):
+    try:
+        # Construimos el campo específico a actualizar (ej: scores.round_1.fase1)
+        field_to_update = f"scores.{data.round_number}.{data.criteria_key}"
+        
+        # Guardamos en la NUEVA colección 'scores'
+        # Usamos upsert=True para crearlo si es la primera vez que se califica a este alumno
+        resultado = await db.scores.update_one(
+            {"participant_id": participant_id},
+            {
+                "$set": {
+                    field_to_update: data.score,
+                    "participant_name": data.participant_name,
+                    "category": data.category.strip().upper()
+                }
+            },
+            upsert=True
+        )
+        
+        return {"message": "Score saved successfully in scores collection"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/scores/{category}")
+async def get_scores(category: str):
+    search_term = category.strip().upper()
+    cursor = db.scores.find({"category": search_term})
+    scores = await cursor.to_list(length=200)
+    
+    for s in scores:
+        s["_id"] = str(s["_id"])
+        
+    return scores
 # ==========================================
 # 5. INTEGRACIÓN FINAL Y ARRANQUE
 # ==========================================
