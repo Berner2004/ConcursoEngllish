@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 import os
 import uvicorn
-import socketio  # <--- NUEVO IMPORT PARA WEBSOCKETS
+import socketio  # <--- IMPORT PARA WEBSOCKETS
 from dotenv import load_dotenv
 
 # Cargar variables desde .env (solo para desarrollo local)
@@ -15,16 +15,14 @@ app = FastAPI(title="AEA Contest API - Production")
 # ==========================================
 # 1. CONFIGURACIÓN DE CORS (EL PUENTE)
 # ==========================================
-# IMPORTANTE: Reemplaza la URL de Netlify con tu URL REAL una vez que la tengas
-# En tu main.py de Render
-# En tu main.py de Render
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "https://preeminent-beijinho-fd3e37.netlify.app",
-        "https://english-contest-vlyas7muk-maciasberner-1059s-projects.vercel.app", # La de la imagen
-        "https://english-contest-gamma.vercel.app" # O tu dominio principal si lo tienes
+        "https://english-contest-vlyas7muk-maciasberner-1059s-projects.vercel.app", 
+        "https://english-contest-gamma.vercel.app",
+        "https://english-contest.vercel.app" # <--- ¡AQUÍ ESTÁ LA SOLUCIÓN! El dominio exacto de tu captura.
     ],
     allow_credentials=True,
     allow_methods=["*"],
