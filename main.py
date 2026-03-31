@@ -6,7 +6,9 @@ import os
 import uvicorn
 import socketio  # <--- IMPORT PARA WEBSOCKETS
 from dotenv import load_dotenv
-
+from pydantic import BaseModel
+from typing import Dict, Any
+from bson import ObjectId
 # Cargar variables desde .env (solo para desarrollo local)
 load_dotenv()
 
@@ -115,6 +117,28 @@ async def get_db_categories():
     categories = await db.participants.distinct("category")
     return categories
 
+class ScoreUpdateRequest(BaseModel):
+    round_number: str
+    criteria_key: str
+    score: int
+
+@app.put("/api/participants/{participant_id}/score")
+async def update_score(participant_id: str, data: ScoreUpdateRequest):
+    try:
+        # Construimos el campo a actualizar, ej: "scores.round_1.fase1"
+        field_to_update = f"scores.{data.round_number}.{data.criteria_key}"
+        
+        resultado = await db.participants.update_one(
+            {"_id": ObjectId(participant_id)},
+            {"$set": {field_to_update: data.score}}
+        )
+        
+        if resultado.modified_count == 1:
+            return {"message": "Score saved successfully"}
+        else:
+            return {"message": "Score updated or participant not found"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 # ==========================================
 # 5. INTEGRACIÓN FINAL Y ARRANQUE
 # ==========================================
