@@ -2,13 +2,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
+from typing import Dict, Any
+from bson import ObjectId
 import os
 import uvicorn
 import socketio  # <--- IMPORT PARA WEBSOCKETS
 from dotenv import load_dotenv
-from pydantic import BaseModel
-from typing import Dict, Any
-from bson import ObjectId
+
 # Cargar variables desde .env (solo para desarrollo local)
 load_dotenv()
 
@@ -24,7 +24,7 @@ app.add_middleware(
         "https://preeminent-beijinho-fd3e37.netlify.app",
         "https://english-contest-vlyas7muk-maciasberner-1059s-projects.vercel.app", 
         "https://english-contest-gamma.vercel.app",
-        "https://english-contest.vercel.app" # <--- ¡AQUÍ ESTÁ LA SOLUCIÓN! El dominio exacto de tu captura.
+        "https://english-contest.vercel.app" # El dominio exacto de tu frontend
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -70,6 +70,13 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class ScoreUpdateRequest(BaseModel):
+    participant_name: str
+    category: str
+    round_number: str
+    criteria_key: str
+    score: int
+
 # ==========================================
 # 4. ENDPOINTS (RUTAS)
 # ==========================================
@@ -78,25 +85,22 @@ class LoginRequest(BaseModel):
 async def root():
     return {"message": "AEA Backend Online - Production Mode"}
 
-# ENDPOINT DE LOGIN (Sincronizado con tu colección 'usuarios')
+# ENDPOINT DE LOGIN
 @app.post("/api/login")
 async def login(credenciales: LoginRequest):
     print(f"🔐 Intento de login: {credenciales.username}")
     
-    # Buscamos al usuario en la colección 'usuarios'
     usuario = await db.usuarios.find_one({"username": credenciales.username})
     
     if not usuario:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
         
-    # Comprobación de contraseña en texto plano (según tu captura de Atlas)
     if credenciales.password != usuario.get("password"):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta")
         
-    # Retornamos los datos que React necesita
     return {
         "username": usuario.get("username"),
-        "rol": usuario.get("role")  # Nota: Usamos 'role' porque así está en tu BD
+        "rol": usuario.get("role") 
     }
 
 # ENDPOINT DE PARTICIPANTES
@@ -117,37 +121,9 @@ async def get_db_categories():
     categories = await db.participants.distinct("category")
     return categories
 
-class ScoreUpdateRequest(BaseModel):
-    round_number: str
-    criteria_key: str
-    score: int
-
-@app.put("/api/participants/{participant_id}/score")
-async def update_score(participant_id: str, data: ScoreUpdateRequest):
-    try:
-        # Construimos el campo a actualizar, ej: "scores.round_1.fase1"
-        field_to_update = f"scores.{data.round_number}.{data.criteria_key}"
-        
-        resultado = await db.participants.update_one(
-            {"_id": ObjectId(participant_id)},
-            {"$set": {field_to_update: data.score}}
-        )
-        
-        if resultado.modified_count == 1:
-            return {"message": "Score saved successfully"}
-        else:
-            return {"message": "Score updated or participant not found"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    # ==========================================
+# ==========================================
 # 4.5 ENDPOINTS DE PUNTUACIONES (COLECCIÓN 'scores')
 # ==========================================
-class ScoreUpdateRequest(BaseModel):
-    participant_name: str
-    category: str
-    round_number: str
-    criteria_key: str
-    score: int
 
 @app.put("/api/scores/{participant_id}")
 async def update_score(participant_id: str, data: ScoreUpdateRequest):
@@ -155,8 +131,7 @@ async def update_score(participant_id: str, data: ScoreUpdateRequest):
         # Construimos el campo específico a actualizar (ej: scores.round_1.fase1)
         field_to_update = f"scores.{data.round_number}.{data.criteria_key}"
         
-        # Guardamos en la NUEVA colección 'scores'
-        # Usamos upsert=True para crearlo si es la primera vez que se califica a este alumno
+        # Guardamos en la NUEVA colección 'scores' usando upsert=True
         resultado = await db.scores.update_one(
             {"participant_id": participant_id},
             {
@@ -168,6 +143,9 @@ async def update_score(participant_id: str, data: ScoreUpdateRequest):
             },
             upsert=True
         )
+        
+        # Emitimos evento Socket.io para que el Leaderboard se actualice en tiempo real en todos los dispositivos
+        await sio.emit('score_updated')
         
         return {"message": "Score saved successfully in scores collection"}
     except Exception as e:
@@ -183,6 +161,7 @@ async def get_scores(category: str):
         s["_id"] = str(s["_id"])
         
     return scores
+
 # ==========================================
 # 5. INTEGRACIÓN FINAL Y ARRANQUE
 # ==========================================
