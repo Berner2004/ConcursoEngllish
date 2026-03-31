@@ -76,6 +76,7 @@ class ScoreUpdateRequest(BaseModel):
     round_number: str
     criteria_key: str
     score: int
+    judge_username: str  # <--- CLAVE: Identificador único del juez para no sobreescribir
 
 # ==========================================
 # 4. ENDPOINTS (RUTAS)
@@ -103,12 +104,17 @@ async def login(credenciales: LoginRequest):
         "rol": usuario.get("role") 
     }
 
-# ENDPOINT DE PARTICIPANTES
+# ENDPOINT DE PARTICIPANTES (Actualizado para soportar 'ALL')
 @app.get("/participants/{category}")
 async def get_participants(category: str):
-    search_term = category.strip().upper()
-    cursor = db.participants.find({"category": search_term}).sort("order_number", 1)
-    participants = await cursor.to_list(length=200)
+    if category.upper() == "ALL":
+        # Si la categoría es ALL, traemos a todos los participantes
+        cursor = db.participants.find().sort("order_number", 1)
+    else:
+        search_term = category.strip().upper()
+        cursor = db.participants.find({"category": search_term}).sort("order_number", 1)
+        
+    participants = await cursor.to_list(length=500)
     
     for p in participants:
         p["_id"] = str(p["_id"])
@@ -128,10 +134,11 @@ async def get_db_categories():
 @app.put("/api/scores/{participant_id}")
 async def update_score(participant_id: str, data: ScoreUpdateRequest):
     try:
-        # Construimos el campo específico a actualizar (ej: scores.round_1.fase1)
-        field_to_update = f"scores.{data.round_number}.{data.criteria_key}"
+        # Construimos el campo específico a actualizar dividiéndolo por juez
+        # Ejemplo: scores.judge1.round_1.fase1 = 3
+        field_to_update = f"scores.{data.judge_username}.{data.round_number}.{data.criteria_key}"
         
-        # Guardamos en la NUEVA colección 'scores' usando upsert=True
+        # Guardamos en la colección 'scores' usando upsert=True
         resultado = await db.scores.update_one(
             {"participant_id": participant_id},
             {
@@ -144,18 +151,23 @@ async def update_score(participant_id: str, data: ScoreUpdateRequest):
             upsert=True
         )
         
-        # Emitimos evento Socket.io para que el Leaderboard se actualice en tiempo real en todos los dispositivos
+        # Emitimos evento Socket.io para que el Leaderboard se actualice en tiempo real
         await sio.emit('score_updated')
         
-        return {"message": "Score saved successfully in scores collection"}
+        return {"message": "Score saved successfully without overwriting other judges"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# ENDPOINT PARA OBTENER SCORES (Actualizado para soportar 'ALL')
 @app.get("/api/scores/{category}")
 async def get_scores(category: str):
-    search_term = category.strip().upper()
-    cursor = db.scores.find({"category": search_term})
-    scores = await cursor.to_list(length=200)
+    if category.upper() == "ALL":
+        cursor = db.scores.find()
+    else:
+        search_term = category.strip().upper()
+        cursor = db.scores.find({"category": search_term})
+        
+    scores = await cursor.to_list(length=500)
     
     for s in scores:
         s["_id"] = str(s["_id"])
