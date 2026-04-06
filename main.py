@@ -173,23 +173,8 @@ async def get_scores(category: str):
         s["_id"] = str(s["_id"])
         
     return scores
-# NUEVO ENDPOINT PARA REINICIAR VOTACIONES
-@app.delete("/api/scores/{category}")
-async def reset_scores(category: str, branch: str = "COCA"):
-    try:
-        search_term = category.strip().upper()
-        # Elimina todos los puntajes de esta categoría (Podrás adaptarlo luego si decides separar por sede en Mongo)
-        await db.scores.delete_many({"category": search_term})
-        return {"message": f"Scores reset successfully for {category}"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-# ==========================================
-# 5. INTEGRACIÓN FINAL Y ARRANQUE
-# ==========================================
-# Envolvemos la app de FastAPI con Socket.io para que usen el mismo puerto
-app = socketio.ASGIApp(sio, other_asgi_app=app)
 
-# NUEVO ENDPOINT: REINICIAR TODAS LAS VOTACIONES
+# NUEVO ENDPOINT: REINICIAR TODAS LAS VOTACIONES (AQUÍ ESTÁ CORRECTO)
 @app.delete("/api/scores/{category}")
 async def reset_scores(category: str, branch: str = "COCA"):
     try:
@@ -209,7 +194,13 @@ async def reset_scores(category: str, branch: str = "COCA"):
         return {"message": "All scores have been reset to zero successfully."}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+# ==========================================
+# 5. INTEGRACIÓN FINAL Y ARRANQUE
+# ==========================================
+# Envolvemos la app de FastAPI con Socket.io para que usen el mismo puerto
+app = socketio.ASGIApp(sio, other_asgi_app=app)
+
 if __name__ == "__main__":
     # Render y Railway asignan el puerto automáticamente mediante la variable PORT
     port = int(os.environ.get("PORT", 8000))
